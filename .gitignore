@@ -17,9 +17,11 @@ env/
 __pycache__/
 
 # Distribution and packaging
-dist/
+# dist/
 build/
 *.egg-info/
+build.py
+AgsAnalysisApp.spec
 
 # -----------------------------------------------------------------------------
 # IDE/PyCharm Specific Files
@@ -37,6 +39,7 @@ build/
 .env
 .flaskenv
 *.key
+.tufup_keys_private
 
 # -----------------------------------------------------------------------------
 # Test Files
