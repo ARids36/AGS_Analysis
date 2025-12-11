@@ -246,12 +246,14 @@ root.resizable(False, False)
 
 # Add header/ footer
 header = Canvas(root, width=360, height=26, bd=0, highlightthickness=0)
-header_img = PhotoImage(file="data/header_pic.png")
+head_file_path = resource_path(os.path.join('data', 'header_pic.png'))
+header_img = PhotoImage(file=head_file_path)
 header.create_image(0, 0, image=header_img)
 header.grid(row=0, column=0, columnspan=2)
 
 footer = Canvas(root, width=360, height=26, bd=0, highlightthickness=0)
-footer_img = PhotoImage(file="data/footer_pic.png")
+foot_file_path = resource_path(os.path.join('data', 'footer_pic.png'))
+footer_img = PhotoImage(file=foot_file_path)
 footer.create_image(0, 0, image=footer_img)
 footer.grid(row=6, column=0, columnspan=2)
 
