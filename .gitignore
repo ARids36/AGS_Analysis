@@ -21,7 +21,6 @@ __pycache__/
 build/
 *.egg-info/
 build.py
-AgsAnalysisApp.spec
 
 # -----------------------------------------------------------------------------
 # IDE/PyCharm Specific Files

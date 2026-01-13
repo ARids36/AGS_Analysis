@@ -99,15 +99,14 @@ def load_file():
     update_log("Data reformatted")
 
 
-def analyse():
+def analyse(ref_data):
     """Compare data with the selected GAC"""
-    global REFORMATTED_DF
 
     try:
         # --- Load GAC data ---
         data_file_path = resource_path(os.path.join('data', GAC[selected_gac.get()]))
         with open(data_file_path, "r") as data:
-            gac_df = pd.read_csv(data, sep=",", encoding="utf-8-sig")
+            gac_df = pd.read_csv(data, sep=",") #, encoding="utf-8-sig")
 
             # Rename the column causing error --- NOT VERY ROBUST - NEEDS ADDRESSING IN FUTURE - Encoding issue?
             if 'ï»¿ERES_NAME' in gac_df.columns:
@@ -117,12 +116,12 @@ def analyse():
         names_list = ['ERES_NAME', 'ERES_CODE']
         gac_list = np.array(gac_df.columns.values[2:]).tolist()
         header_list = names_list + gac_list
-        merged_df = pd.merge(REFORMATTED_DF,
+        merged_df = pd.merge(ref_data,
                              gac_df[header_list],
                              on=['ERES_NAME', 'ERES_CODE'], how='left')
 
         # Get the original order of ERES_NAME and ERES_CODE from reformatted_df before merging
-        original_order = REFORMATTED_DF[['ERES_NAME', 'ERES_CODE']].drop_duplicates()
+        original_order = ref_data[['ERES_NAME', 'ERES_CODE']].drop_duplicates()
 
         # Reindex the merged_df to match the original order
         merged_df = merged_df.set_index(['ERES_NAME', 'ERES_CODE']).reindex(
@@ -146,7 +145,8 @@ def analyse():
         for lab_col in lab_columns:
             temp_lab_series = exceedances_df[lab_col].astype(str)
             greater_than_mask = temp_lab_series.str.contains('>', na=False)
-            temp_lab_series = temp_lab_series.str.replace('<', '', regex=False).str.replace('>', '', regex=False)
+            # temp_lab_series = temp_lab_series.str.replace('<', '', regex=False).str.replace('>', '', regex=False)
+            temp_lab_series = temp_lab_series.replace(r'.*<.*', '0', regex=True).str.replace('>', '', regex=False) # Replaces <x values with 0
             numeric_lab_series = pd.to_numeric(temp_lab_series, errors='coerce')
 
             col_exceedance_mask = pd.Series(False, index=exceedances_df.index)
@@ -175,7 +175,7 @@ def analyse():
         if exceedances_df.empty:
             update_log('No exceedances identified')
         else:
-            display_data("Threshold Exceedances", exceedances_df)
+            display_data("Threshold Exceedances", exceedances_df, analysis=True, gac=gac_list)
 
     except KeyError:
         update_log('Invalid file type')
@@ -183,23 +183,59 @@ def analyse():
                                                "check AGS data is loaded as data file")
 
 
-def display_data(table_name, data):
+def display_data(table_name, data, analysis=False, gac=None):
     """Display data in a pop-out GUI
 
     Keyword arguments:
     table_name -- Title of the table to be displayed
     data -- Data table to be displayed
+    analysis -- If True, values will be formatted relative to included GAC data
+    gac -- GAC head data
     """
     if data.empty:
         update_log("No data to display")
         messagebox.showwarning("No data", "No data to display - please load a valid file")
     else:
+        # Remove NaN values and format headers - solve pandastable float issues
+        data = data.fillna('')
+        data.columns = [str(col) for col in data.columns]
+
+        # Create table
         data_window = tk.Toplevel(root)
         data_window.title(table_name)
         # Add table widget - Create a Frame to hold the table.
         table_frame = tk.Frame(data_window)
         table_frame.pack(fill='both', expand=True)
         pt = Table(table_frame, dataframe=data, showtoolbar=True, showstatusbar=True)
+
+        if analysis:
+            gac_head = gac
+            data_head = [x for x in list(data.columns.values)[2:] if x not in gac_head]
+
+            # 'Shadow' data frame to convert everything to numeric values
+            cols_to_clean = data_head + gac_head
+            calc_df = data[cols_to_clean].copy()
+
+            calc_df = calc_df.replace(r'.*<.*', '0', regex=True) # Remove if "<x" values should be treated as "x" and not "0"
+            calc_df = calc_df.replace(r'[^0-9.\-]', '', regex=True)
+            calc_df = calc_df.apply(pd.to_numeric, errors='coerce')
+            # Ensures empty GAC fields can't be exceeded
+            calc_standards = calc_df[gac_head].min(axis=1).fillna(np.inf)
+
+            for col in data_head:
+                mask = calc_df[col] > calc_standards
+                # Apply shading to original dataset
+                pt.setColorByMask(col, mask, '#FFCCCB')
+            pt.redraw()
+
+            # Exceedance data
+            exceedance_mask = calc_df[data_head].gt(calc_standards, axis=0)
+            total_exceedances = exceedance_mask.sum().sum()
+            sample_counts = exceedance_mask.sum()
+            exceedances_msg = (f"\nTotal Exceedances: {total_exceedances}\n"
+                               f"{sample_counts}")
+            update_log(exceedances_msg)
+
         pt.show()
         pt.autoResizeColumns()
 
@@ -241,7 +277,7 @@ WHITE= "#FFFFFF"
 root = tk.Tk()
 root.configure(background=ORANGE)
 root.title("Lab Analysis")
-root.geometry("360x395")
+root.geometry("360x475")
 root.resizable(False, False)
 
 # Add header/ footer
@@ -303,7 +339,7 @@ analyse_button = tk.Button(
     root,
     text="Analyse data",
     font=BUTTON_FONT,
-    command=analyse
+    command=lambda:analyse(REFORMATTED_DF)
 )
 analyse_button.grid(sticky="W", column=0, row=4, padx=5, pady=15)
 
@@ -322,16 +358,13 @@ log_container.grid(row=5, column=0, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
 log_container.grid_columnconfigure(0, weight=1)
 log_container.grid_rowconfigure(1, weight=1)
 
-# log_label = tk.Label(log_container, text="Log:", anchor='w', bg=ORANGE)
-# log_label.grid(row=0, column=0, columnspan=2, sticky=tk.W + tk.E)
-
 scrollbar = tk.Scrollbar(log_container)
 scrollbar.grid(row=1, column=1, sticky=tk.N+tk.S)
 
 log_widget = tk.Text(log_container,
                      wrap="word",  # Wrap lines at word boundaries
                      yscrollcommand=scrollbar.set,  # Link scrollbar to Text widget
-                     height=5,  # Initial height in lines
+                     height=10,  # Initial height in lines
                      width=40,
                      bg='white',
                      bd=1,  # Border width

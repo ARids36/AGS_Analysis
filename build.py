@@ -1,34 +1,39 @@
-"""Run process to create new .exe file"""
-
 import subprocess
+import os
+import shutil
 
 # --- CONFIGURATION ---
 EXE_NAME = "AgsAnalysisApp"
-MAIN_SCRIPT = 'ags_analysis.py'
-DATA_DIR_NAME = 'data'
+SPEC_FILE = f"{EXE_NAME}.spec"
 # ---------------------
 
-# The format for --add-data is: <source>;<destination> (on Windows)
-# This command tells PyInstaller to take the entire local 'data_files' folder
-# and place it in a folder also named 'data_files' inside the executable.
+def run_build():
+    # 1. Check if the .spec file actually exists
+    if not os.path.exists(SPEC_FILE):
+        print(f"Error: {SPEC_FILE} not found!")
+        print("You may need to run your old build script once more to generate it.")
+        return
 
-pyinstaller_command = [
-    'pyinstaller',
-    '--onefile',         # Creates a single EXE file
-    '--windowed',        # Prevents the console (terminal) window from appearing
-    '--name', EXE_NAME,
-    '--add-data', f'{DATA_DIR_NAME};{DATA_DIR_NAME}',
-    MAIN_SCRIPT
-]
+    print(f"Starting PyInstaller build using: {SPEC_FILE}")
 
-print(f"Starting PyInstaller build for {EXE_NAME}.exe...")
-try:
-    # Run the PyInstaller command
-    subprocess.run(pyinstaller_command, check=True)
-    print("\n✅ Build Successful!")
-    print(f"Your executable is located at: dist\\{EXE_NAME}.exe")
-    print("You can now share this file with your colleagues.")
+    try:
+        # 2. Run PyInstaller using the spec file
+        # Note: We don't need --onefile or --add-data here;
+        # those are already saved inside the .spec file.
+        subprocess.run(['pyinstaller', '--noconfirm', SPEC_FILE], check=True)
 
-except subprocess.CalledProcessError as e:
-    print(f"\n❌ Build Failed with error code {e.returncode}")
-    print("Check the warnings/errors above and ensure all package names are correct.")
+        print("\nBuild Successful!")
+        print(f"Location: dist/{EXE_NAME}.exe")
+
+        # 3. Optional: Clean up the 'build' folder to keep your directory tidy
+        if os.path.exists('build'):
+            shutil.rmtree('build')
+            print("Cleanup: Removed temporary 'build' directory.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"\nBuild Failed with error code {e.returncode}")
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+
+if __name__ == "__main__":
+    run_build()
