@@ -1,5 +1,5 @@
 # Ags Screening Software
-v1.0.3
+v1.1.0-alpha
 
 **! This is a prototype software, still in development. Please check all results for inaccuracies before using them for
 reporting. This may arise from an error in the programmes logic, or errors in the included GAC data. Please report 
@@ -26,8 +26,9 @@ and can be saved as a .csv file for inclusion in reporting or further analysis t
 - Press 'Analyse Data' to compare data against the selected GAC
 - This will generate a table displaying any samples that recorded GAC exceedances. Specific contaminants exceeded 
 will be highlighted in red
-- To save tables, select 'Save' from the toolbar in the popout window. Under 'Save as type' select 'All files', and
-under 'File name' enter "yourFileName.csv", replacing with your own file name, but keeping .csv
+- To save tables as csv, select 'Save' from the toolbar in the pop-out window. Under 'Save as type' select
+'All files', and under 'File name' enter "yourFileName.csv", replacing with your own file name, but keeping .csv
+- To save the filtered data as a .ags file, use the button "Export .AGS", which should no longer be greyed out
 - If no exceedances are recorded, no table will be displayed, and the user is prompted in the notice board
 ### Notes on functionality
 - Any values recorded below the laboratory detection limit (eg, <2.0) shall be treated as the value 0, regardless of
