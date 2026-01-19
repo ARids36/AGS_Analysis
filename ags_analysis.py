@@ -20,11 +20,17 @@ from tkinter import Canvas, PhotoImage, messagebox
 from tkinter import filedialog, ttk
 import os
 import sys
+import subprocess
+from __version__ import __version__
 
 
 # ---------- FUNCTIONS ----------
 def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """Get absolute path to resource, works for dev and for PyInstaller
+
+    Keyword arguments:
+        relative_path (string) -- the local file path
+    """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
@@ -100,8 +106,11 @@ def load_file():
 
 
 def analyse(ref_data):
-    """Compare data with the selected GAC"""
+    """Compare data with the selected GAC
 
+    Keyword arguments:
+        ref_data (pandas.DataFrame) -- Dataframe containing formatted data
+    """
     try:
         # --- Load GAC data ---
         data_file_path = resource_path(os.path.join('data', GAC[selected_gac.get()]))
@@ -187,10 +196,10 @@ def display_data(table_name, data, analysis=False, gac=None):
     """Display data in a pop-out GUI
 
     Keyword arguments:
-    table_name -- Title of the table to be displayed
-    data -- Data table to be displayed
-    analysis -- If True, values will be formatted relative to included GAC data
-    gac -- GAC head data
+        table_name (string) -- Title of the table to be displayed
+        data (pandas.DataFrame) -- Data table to be displayed
+        analysis (bool) -- If True, values will be formatted relative to included GAC data
+        gac (list) -- GAC head data
     """
     if data.empty:
         update_log("No data to display")
@@ -241,7 +250,11 @@ def display_data(table_name, data, analysis=False, gac=None):
 
 
 def update_log(message):
-    """Update the log with the given update message"""
+    """Update the log with the given update message
+
+    Keyword arguments:
+        message (string) -- Update message
+    """
     if log_widget:
         log_widget.config(state="normal")
         # Add timestamp if necessary
@@ -256,6 +269,7 @@ def update_log(message):
 def pass_func():
     """Bypass function for testing. Boop!"""
     print('boop')
+    update_log('boop')
 
 # ---------- VARIABLES ----------
 LAB_FILE = ""
@@ -277,7 +291,7 @@ WHITE= "#FFFFFF"
 root = tk.Tk()
 root.configure(background=ORANGE)
 root.title("Lab Analysis")
-root.geometry("360x475")
+root.geometry("360x477")
 root.resizable(False, False)
 
 # Add header/ footer
@@ -296,7 +310,7 @@ footer.grid(row=6, column=0, columnspan=2)
 # Add Labels
 title = tk.Label(
     root,
-    text="Lab Data Analysis",
+    text="Ags Screening Software",
     font=TITLE_FONT,
     bg=ORANGE
 )
@@ -317,6 +331,13 @@ gac_label = tk.Label(
     bg=ORANGE
 )
 gac_label.grid(sticky="W", column=0, row=3, padx=5, pady=10)
+
+version_label = tk.Label(
+    root,
+    text=f"v{__version__}",
+    font=("Calibri", 8),
+)
+version_label.grid(sticky="W", column=0, row=6, padx=5, pady=5)
 
 # Add buttons
 upload_button = tk.Button(
@@ -342,6 +363,14 @@ analyse_button = tk.Button(
     command=lambda:analyse(REFORMATTED_DF)
 )
 analyse_button.grid(sticky="W", column=0, row=4, padx=5, pady=15)
+
+help_button = tk.Button(
+    root,
+    text="Help",
+    font=("Calibri", 8),
+    command=lambda: os.startfile('README.md')
+)
+help_button.grid(sticky="E", column=1, row=6, padx=5, pady=5)
 
 # Add dropdown
 dropdown_options = ["Industrial Soil", "Industrial Water", "Residential Soil", "Residential Water"]
