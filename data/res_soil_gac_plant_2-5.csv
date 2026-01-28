@@ -1,0 +1,169 @@
+﻿ERES_NAME,ERES_CODE,RESI_PLANT
+pH,,
+Moisture,,
+Total Organic Carbon,,
+Arsenic,7440-38-2,37
+Barium,,-
+Beryllium,7440-41-7,1.7
+Boron (water soluble),7440-42-8,290
+Cadmium,7440-43-9,22
+Copper,7440-50-8,2400
+Chromium,7440-47-3,910
+Lead,7439-92-1,200
+Mercury,7439-97-6,1.2
+Nickel,7440-02-0,180
+Selenium,7782-49-2,250
+Vanadium,7440-62-2,410
+Zinc,7440-66-6,3700
+Speciated PCB-WHO12,,
+PCB BZ 81,,
+PCB BZ 105,,
+PCB BZ 114,,
+PCB BZ 118,,
+PCB BZ 123,,
+PCB BZ 126,,
+PCB BZ 156,,
+PCB BZ 157,,
+PCB BZ 167,,
+PCB BZ 169,,
+PCB BZ 189,,
+PCB BZ 77,,
+Total Speciated PCB-WHO12,,
+,,
+SVOC,,
+Hexachlorobenzene,118-74-1,3300
+Diethyl phthalate,84-66-2,"3,500,000"
+Dimethyl phthalate,131-11-3,
+Dibenzofuran,132-64-9,
+Carbazole,86-74-8,
+Butylbenzyl phthalate,85-68-7,"44,000,000"
+Bis(2-ethylhexyl)phthalate,117-81-7,"2,800,000"
+Bis(2-chloroethoxy)methane,111-91-1,
+Bis(2-chloroethyl)ether,111-44-4,
+4-Nitrophenol,100-02-7,
+3+4-Methylphenol,P1846,5400000
+4-Chloro-3-methylphenol,59-50-7,
+2-Nitrophenol,88-75-5,
+2-Methylphenol,95-48-7,5400000
+2-Chlorophenol,95-57-8,2000
+"2,6-Dinitrotoluene",606-20-2,84000
+"2,4-Dinitrotoluene",121-14-2,170000
+"2,4-Dimethylphenol",105-67-9,410000
+"2,4-Dichlorophenol",120-83-2,
+"2,4,6-Trichlorophenol",88-06-2,
+"2,4,5-Trichlorophenol",95-95-4,
+2-Chloronaphthalene,91-58-7,9300
+2-Methylnaphthalene,91-57-6,
+Acenaphthylene,208-96-8,400000
+Acenaphthene,83-32-9,480000
+Anthracene,120-12-7,4900000
+Benzo(a)anthracene,56-55-3,4700
+Benzo(b)fluoranthene,205-99-2,6500
+Benzo(k)fluoranthene,207-08-9,9600
+Benzo(a)pyrene,50-32-8,940
+Benzo(ghi)perylene,191-24-2,46000
+Chrysene,218-01-9,8000
+Fluoranthene,206-44-0,460000
+Fluorene,86-73-7,380000
+"Indeno(1,2,3-cd)pyrene",193-39-5,3900
+Phenanthrene,85-01-8,200000
+Pyrene,129-00-0,1000000
+Naphthalene,91-20-3,3700
+Dibenzo(ah)anthracene,53-70-3,860
+Bis(2-chloroisopropyl)ether,39638-32-9,
+Phenol,108-95-2,550000
+Pentachlorophenol (SVOC),87-86-5,520
+n-Nitroso-n-dipropylamine,621-64-7,
+n-Dioctylphthalate,117-84-0,
+n-Dibutylphthalate,84-74-2,
+Nitrobenzene,98-95-3,
+Isophorone,78-59-1,
+Hexachloroethane,67-72-1,220
+Hexachlorocyclopentadiene,87-68-3,
+Perylene,198-55-0,
+,,
+VOC,,
+Dichlorodifluoromethane,75-71-8,
+Chloromethane,74-87-3,9.9
+Vinyl Chloride (Chloroethene),75-01-4,0.87
+Bromomethane,74-83-9,
+Chloroethane,75-00-3,11000
+Trichlorofluoromethane,75-69-4,
+"1,1-Dichloroethene",75-35-4,410
+Carbon Disulphide,75-15-0,290
+Dichloromethane,75-09-2,2800
+"trans 1,2-Dichloroethene",156-60-5,350
+"1,1-Dichloroethane",75-34-3,4100
+"cis 1,2-Dichloroethene",156-59-2,200
+"2,2-Dichloropropane",594-20-7,
+Bromochloromethane,74-97-5,
+Chloroform,67-66-3,1700
+"1,1,1-Trichloroethane",71-55-6,18000
+"1,1-Dichloropropene",563-58-6,
+Carbon Tetrachloride,56-23-5,56
+"1,2-Dichloroethane",107-06-2,11
+Benzene,71-43-2,170
+Trichloroethene,79-01-6,34
+"1,2-Dichloropropane",78-87-5,42
+Dibromomethane,74-95-3,
+Bromodichloromethane,75-27-4,11000
+"cis 1,3-Dichloropropene",10061-01-5,
+Toluene,108-88-3,290000
+"trans 1,3-Dichloropropene",10061-02-6,
+"1,1,2-Trichloroethane",79-00-5,1800
+"1,3-Dichloropropane",142-28-9,
+Tetrachloroethene,127-18-4,34
+Dibromochloromethane,124-48-1,
+"1,2-Dibromoethane",106-93-4,
+Chlorobenzene,108-90-7,1000
+"1,1,1,2-Tetrachloroethane",630-20-6,2800
+Ethylbenzene,100-41-4,110000
+m & p Xylene,P1374,130000
+o-Xylene,95-47-6,140000
+Styrene,100-42-5,78000
+Bromoform,75-25-2,34
+Isopropylbenzene,98-82-8,12000
+"1,1,2,2-Tetrachloroethane",79-34-5,3400
+"1,2,3-Trichloropropane",96-18-4,
+Bromobenzene,108-86-1,2100
+n-Propylbenzene,103-65-1,97000
+2-Chlorotoluene,95-49-8,
+"1,3,5-Trimethylbenzene",108-67-8,
+4-Chlorotoluene,106-43-4,
+tert-Butylbenzene,98-06-6,
+"1,2,4-Trimethylbenzene",95-63-6,990
+sec-Butylbenzene,135-98-8,
+4-Isopropyltoluene,99-87-6,
+"1,3-Dichlorobenzene",541-73-1,1000
+"1,4-Dichlorobenzene",106-46-7,150000
+n-Butylbenzene,104-51-8,
+"1,2-Dichlorobenzene",95-50-1,55000
+"1,2-Dibromo-3-chloropropane (DCBP)",96-12-8,
+"1,2,4-Trichlorobenzene",120-82-1,6400
+Hexachlorobutadiene,87-68-3,
+"1,2,3-Trichlorobenzene",87-61-6,3600
+,,
+TPH CWG,,
+Ali >C5-C6,P1407,55
+Ali >C6-C8,P1408,160
+Ali >C8-C10,P1409,46
+Ali >C10-C12,P1410,230
+Ali >C12-C16,P1411,1700
+Ali >C16-C21,P1412,64000
+Ali >C21-C35,P1413,64000
+Total Aliphatics,P1418,
+Aro >C5-C7,P1441,130
+Aro >C7-C8,P1355,270
+Aro >C8-C10,P1356,65
+Aro >C10-C12,P1357,160
+Aro >C12-C16,P1358,310
+Aro >C16-C21,P1359,480
+Aro >C21-C35,P1360,1100
+Total Aromatics,P1947,
+TPH (Ali & Aro >C5-C35),P1371,
+BTEX - Benzene,71-43-2,0.17
+BTEX - Toluene,108-88-3,290
+BTEX - Ethyl Benzene,100-41-4,110
+BTEX - m & p Xylene,P1374,130
+BTEX - o Xylene,95-47-6,140
+MTBE,1634-04-4,

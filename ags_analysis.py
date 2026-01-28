@@ -6,9 +6,19 @@ Results are displayed as integrated tables that can be exported as .csv files
 
 ERES_CODE in AGS link directly to the contaminant names based on their CAS number.
 CAS numbers can be queried at https://webbook.nist.gov/chemistry/name-ser/
-"""
 
-from __version__ import __version__
+TO DO:
+Check all GAC data
+
+SOLVED:
+Add sample depths - previous code only picked first sample ID, removing any deeper samples
+File name wrapped and window auto-sized
+CSV export button added for filtered data
+.xlsx save function to preserve formatting
+Check box to display all data, not just exceedance
+Dropdown to select varying SOM
+Added User specific target capabilities
+"""
 
 # ---------- IMPORTS ----------
 import pandas as pd
@@ -20,7 +30,6 @@ from tkinter import Canvas, PhotoImage, messagebox
 from tkinter import filedialog, ttk
 import os
 import sys
-import subprocess
 from __version__ import __version__
 
 
@@ -52,6 +61,13 @@ def load_file():
 
     if filepath:
         file_label.config(text=f"{os.path.basename(filepath)}")
+
+        # Resize window if necessary
+        root.update_idletasks()
+        new_height = root.winfo_reqheight()
+        current_width = root.winfo_width()
+        root.geometry(f"{current_width}x{new_height}")
+
         LAB_FILE = filepath
     else:
         file_label.config(text=f"No file selected")
@@ -85,24 +101,41 @@ def load_file():
         return
 
     # --- Reformat lab data ---
-    REFORMATTED_DF = lab_results_df.pivot_table(index=['ERES_NAME', 'ERES_CODE'], columns='LOCA_ID',
-                                                values='ERES_RTXT',
-                                                aggfunc='first')
+    REFORMATTED_DF = lab_results_df.pivot_table(
+        index=['ERES_NAME', 'ERES_CODE'],
+        columns=['LOCA_ID', 'SPEC_DPTH'],
+        values='ERES_RTXT',
+        aggfunc='first'
+    )
+
+    # Create single string headers (eg, WS01 (0.3m))
+    new_columns = []
+    for col in REFORMATTED_DF.columns:
+        loc = col[0]
+        depth = col[1]
+        # Handle formatting if depth is present/valid
+        if pd.notna(depth) and str(depth).strip() != '':
+            new_columns.append(f"{loc} ({depth}m)")
+        else:
+            new_columns.append(f"{loc}")
+
+    REFORMATTED_DF.columns = new_columns
 
     # Get the unique ERES_NAME and ERES_CODE pairs from lab_results_df in their original order
     original_order = lab_results_df[['ERES_NAME', 'ERES_CODE']].drop_duplicates()
 
     # Reindex the reformatted_df to match the original order
-    REFORMATTED_DF = REFORMATTED_DF.reindex(original_order.set_index(['ERES_NAME', 'ERES_CODE']).index)
+    valid_keys = original_order.set_index(['ERES_NAME', 'ERES_CODE']).index.intersection(REFORMATTED_DF.index)
+    REFORMATTED_DF = REFORMATTED_DF.reindex(valid_keys)
 
     # Reset the index to make ERES_NAME and ERES_CODE regular columns
     REFORMATTED_DF = REFORMATTED_DF.reset_index()
 
-    # Define the LOCA_ID columns to check for data dynamically
-    loca_id_columns = [col for col in REFORMATTED_DF.columns if col not in ['ERES_NAME', 'ERES_CODE']]
+    # Define the data columns to check for data dynamically (excluding the name/code columns)
+    data_columns = [col for col in REFORMATTED_DF.columns if col not in ['ERES_NAME', 'ERES_CODE']]
 
-    # Filter out rows where all specified LOCA_ID columns are NaN
-    REFORMATTED_DF = REFORMATTED_DF.dropna(subset=loca_id_columns, how='all')
+    # Filter out rows where all specified data columns are NaN
+    REFORMATTED_DF = REFORMATTED_DF.dropna(subset=data_columns, how='all')
     update_log("Data reformatted")
 
 
@@ -112,112 +145,125 @@ def analyse(ref_data):
     Keyword arguments:
         ref_data (pandas.DataFrame) -- Dataframe containing formatted data
     """
-    global FILTERED_AGS
+    global FILTERED_AGS, FILTERED_DF, SELECTED_GAC, CURRENT_GAC_LIST, SELECTED_SOM
 
     try:
         # --- Load GAC data ---
-        data_file_path = resource_path(os.path.join('data', GAC[selected_gac.get()]))
-        with open(data_file_path, "r") as data:
-            gac_df = pd.read_csv(data, sep=",") #, encoding="utf-8-sig")
+        if SELECTED_GAC.get() == "Custom Criteria":
+            filepath = filedialog.askopenfilename(
+                title="Select a custom acceptance criteria",
+                filetypes=(("CSV files", "*.csv"), ("All files", "*.*")))
 
-            # Rename the column causing error --- NOT VERY ROBUST - NEEDS ADDRESSING IN FUTURE - Encoding issue?
+            if filepath:
+                filename = filepath
+            else:
+                update_log("Unable to load custom criteria")
+                messagebox.showwarning("No Criteria Loaded", "Unable to load file - check file name and path")
+                return
+        else:
+            filename = GAC[SELECTED_GAC.get()]+SOM[SELECTED_SOM.get()]+".csv"
+
+        data_file_path = resource_path(os.path.join('data', filename))
+        with open(data_file_path, "r") as data:
+            gac_df = pd.read_csv(data, sep=",")
+
             if 'ï»¿ERES_NAME' in gac_df.columns:
                 gac_df.rename(columns={'ï»¿ERES_NAME': 'ERES_NAME'}, inplace=True)
 
         FILTERED_AGS = filter_raw_data_by_gac(gac_df)
         if FILTERED_AGS:
-            export_button.config(state="normal")  # Enable the export button
+            export_ags_button.config(state="normal")
+            export_csv_button.config(state="normal")
+            export_xlsx_button.config(state="normal")
         else:
-            export_button.config(state="disabled")
+            export_ags_button.config(state="disabled")
+            export_csv_button.config(state="disabled")
+            export_xlsx_button.config(state="disabled")
 
         # --- Merge dataframes ---
         names_list = ['ERES_NAME', 'ERES_CODE']
         gac_list = np.array(gac_df.columns.values[2:]).tolist()
+        CURRENT_GAC_LIST = gac_list
         header_list = names_list + gac_list
-        merged_df = pd.merge(ref_data,
-                             gac_df[header_list],
-                             on=['ERES_NAME', 'ERES_CODE'], how='left')
+        merged_df = pd.merge(ref_data, gac_df[header_list], on=['ERES_NAME', 'ERES_CODE'], how='left')
 
-        # Get the original order of ERES_NAME and ERES_CODE from reformatted_df before merging
-        original_order = ref_data[['ERES_NAME', 'ERES_CODE']].drop_duplicates()
-
-        # Reindex the merged_df to match the original order
+        # Restore original ERES order
+        original_order_index = ref_data[['ERES_NAME', 'ERES_CODE']].drop_duplicates()
         merged_df = merged_df.set_index(['ERES_NAME', 'ERES_CODE']).reindex(
-            original_order.set_index(['ERES_NAME', 'ERES_CODE']).index).reset_index()
+            original_order_index.set_index(['ERES_NAME', 'ERES_CODE']).index).reset_index()
         update_log('Tables merged')
 
-        # --- Analyse exceedances ---
-        exceedances_df = merged_df.copy()
+        # --- Prepare for Analysis ---
         limit_columns = gac_list
+        lab_columns = [col for col in merged_df.columns if col not in ['ERES_NAME', 'ERES_CODE'] + limit_columns]
 
+        # Create numeric shadow for mask calculation
+        calc_df = merged_df.copy()
         for col in limit_columns:
-            exceedances_df[col] = pd.to_numeric(exceedances_df[col], errors='coerce')
+            calc_df[col] = pd.to_numeric(calc_df[col], errors='coerce')
 
-        exceedances_df = exceedances_df.dropna(subset=limit_columns, how='all')
-
-        lab_columns = [col for col in exceedances_df.columns if col not in ['ERES_NAME', 'ERES_CODE'] + limit_columns]
-
-        exceedance_mask = pd.Series(False, index=exceedances_df.index)
+        exceedance_mask = pd.Series(False, index=merged_df.index)
         exceeding_lab_columns = []
 
+        # --- Masking Logic ---
         for lab_col in lab_columns:
-            temp_lab_series = exceedances_df[lab_col].astype(str)
+            temp_lab_series = merged_df[lab_col].astype(str)
             greater_than_mask = temp_lab_series.str.contains('>', na=False)
-            # temp_lab_series = temp_lab_series.str.replace('<', '', regex=False).str.replace('>', '', regex=False)
-            temp_lab_series = temp_lab_series.replace(r'.*<.*', '0', regex=True).str.replace('>', '', regex=False) # Replaces <x values with 0
+            temp_lab_series = temp_lab_series.replace(r'.*<.*', '0', regex=True).str.replace('>', '', regex=False)
             numeric_lab_series = pd.to_numeric(temp_lab_series, errors='coerce')
 
-            col_exceedance_mask = pd.Series(False, index=exceedances_df.index)
+            col_exceedance_mask = pd.Series(False, index=merged_df.index)
             for limit_col in limit_columns:
-                aligned_numeric_lab = numeric_lab_series.align(exceedances_df[limit_col])[0]
-                aligned_limit = numeric_lab_series.align(exceedances_df[limit_col])[1]
+                aligned_numeric_lab = numeric_lab_series
+                aligned_limit = calc_df[limit_col]
 
                 numeric_exceedance = ((aligned_numeric_lab > aligned_limit)
                                       & aligned_numeric_lab.notna() & aligned_limit.notna())
-
-                col_exceedance_mask = col_exceedance_mask | numeric_exceedance | greater_than_mask.reindex(
-                    col_exceedance_mask.index, fill_value=False)
+                col_exceedance_mask = col_exceedance_mask | numeric_exceedance | greater_than_mask
 
             if col_exceedance_mask.any():
                 exceeding_lab_columns.append(lab_col)
-
             exceedance_mask = exceedance_mask | col_exceedance_mask
 
-        exceedances_df = exceedances_df[exceedance_mask].copy()
+        # --- Apply Sorting (Apply to merged_df so both views benefit) ---
+        gac_names = gac_df['ERES_NAME'].dropna().unique().tolist()
+        lab_names = merged_df['ERES_NAME'].dropna().unique().tolist()
 
-        final_columns = ['ERES_NAME', 'ERES_CODE'] + exceeding_lab_columns + limit_columns
-        exceedances_df = exceedances_df[final_columns]
-
-        # Strip whitespace from both dataframes to ensure matches
-        gac_df['ERES_NAME'] = gac_df['ERES_NAME'].astype(str).str.strip()
-        exceedances_df['ERES_NAME'] = exceedances_df['ERES_NAME'].astype(str).str.strip()
-
-        # Create a categorical type for ERES_NAME based on the order in the GAC file
-        # gac_df['ERES_NAME'] contains the names in the desired order
-        desired_order = gac_df['ERES_NAME'].dropna().unique()
-
-        # Convert ERES_NAME column to categorical with this specific order
-        # Values in exceedances_df not in desired_order will become NaN (which is fine)
-        exceedances_df['ERES_NAME'] = pd.Categorical(
-            exceedances_df['ERES_NAME'],
-            categories=desired_order,
+        # Combine them, keeping GAC names at the top and adding unique lab names after
+        combined_categories = gac_names + [name for name in lab_names if name not in gac_names]
+        merged_df['ERES_NAME'] = pd.Categorical(
+            merged_df['ERES_NAME'].astype(str).str.strip(),
+            categories=combined_categories,
             ordered=True
         )
+        merged_df = merged_df.sort_values('ERES_NAME')
+        # Re-apply sorting to the mask as well to keep indices aligned
+        exceedance_mask = exceedance_mask.reindex(merged_df.index)
 
-        # Sort by the new categorical column
-        exceedances_df = exceedances_df.sort_values('ERES_NAME')
+        # --- Branching Logic for Display ---
+        if ALL_DATA.get():
+            # Show all data, keeping Name, Code, Lab Samples, then GAC columns
+            display_df = merged_df[['ERES_NAME', 'ERES_CODE'] + lab_columns + limit_columns].copy()
+            display_title = "Full Data Set (Screened)"
+            update_log('Displaying full dataset')
+        else:
+            display_df = merged_df[exceedance_mask].copy()
+            display_df = display_df[['ERES_NAME', 'ERES_CODE'] + exceeding_lab_columns + limit_columns]
+            display_title = "Threshold Exceedances"
+            update_log('Displaying exceedances only')
 
+        FILTERED_DF = display_df
         update_log('Data analysed')
 
-        if exceedances_df.empty:
-            update_log('No exceedances identified')
+        if display_df.empty:
+            update_log('No data matches the current filter')
         else:
-            display_data("Threshold Exceedances", exceedances_df, analysis=True, gac=gac_list)
+            table_name = f"Screened {file_label['text']} - {SELECTED_GAC.get()} {SELECTED_SOM.get()}"
+            display_data(table_name, display_df, analysis=True, gac=gac_list)
 
-    except KeyError:
-        update_log('Invalid file type')
-        messagebox.showwarning("Invalid file", "Data not presented in AGS format - "
-                                               "check AGS data is loaded as data file")
+    except Exception as e:
+        update_log(f'Error during analysis: {str(e)}')
+        messagebox.showerror("Analysis Error", f"An error occurred: {str(e)}")
 
 
 def filter_raw_data_by_gac(gac_df):
@@ -233,16 +279,14 @@ def filter_raw_data_by_gac(gac_df):
 
     full_eres_df = RAW_DATA['ERES'].copy()
 
-    # Separate Metadata (Rows 0-1) from Data (Rows 2+)
     eres_metadata = full_eres_df.iloc[:2].copy()
     eres_data = full_eres_df.iloc[2:].copy()
 
-    # Clean GAC headers
     if 'ï»¿ERES_NAME' in gac_df.columns:
         gac_df.rename(columns={'ï»¿ERES_NAME': 'ERES_NAME'}, inplace=True)
 
     # Filter ONLY the data rows
-    # Merge resets the index, so we must restore it to match eres_data
+    # Merge resets the index, so we restore it to match eres_data
     merged = pd.merge(eres_data, gac_df, on=['ERES_NAME', 'ERES_CODE'], how='left')
 
     # Restore the original index to the merged dataframe
@@ -293,12 +337,82 @@ def export_ags_file():
 
     if save_path:
         try:
-            # Use the library's built-in writer
             AGS4.dataframe_to_AGS4(tables=FILTERED_AGS, headings=AGS_HEADINGS, filepath=save_path)
             update_log(f"File saved: {os.path.basename(save_path)}")
             messagebox.showinfo("Success", "AGS file exported successfully.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {str(e)}")
+
+
+def export_csv_file():
+    """Saves the filtered exceeding data to a new .csv file"""
+    global FILTERED_DF
+
+    if FILTERED_DF.empty:
+        messagebox.showinfo("Export", "No analysed data to export. Please Run Analysis first.")
+        return
+
+    save_path = filedialog.asksaveasfilename(
+        title="Save CSV File",
+        defaultextension=".csv",
+        filetypes=(("CSV files", "*.csv"), ("All files", "*.*"))
+    )
+
+    if save_path:
+        try:
+            FILTERED_DF.to_csv(save_path, index=False, header=True)
+            update_log(f"File saved: {os.path.basename(save_path)}")
+            messagebox.showinfo("Success", "CSV file exported successfully.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save file: {str(e)}")
+
+
+def export_xlsx_file():
+    """Saves the filtered exceeding data to a new .xlsx file with color coding"""
+    global FILTERED_DF, CURRENT_GAC_LIST
+
+    if FILTERED_DF.empty or not CURRENT_GAC_LIST:
+        messagebox.showinfo("Export", "No analysed data to export. Please Run Analysis first.")
+        return
+
+    save_path = filedialog.asksaveasfilename(
+        title="Save Excel File",
+        defaultextension=".xlsx",
+        filetypes=(("Excel files", "*.xlsx"), ("All files", "*.*"))
+    )
+
+    if save_path:
+        try:
+            # Identify columns based on the same logic as display_data()
+            all_cols = FILTERED_DF.columns.tolist()
+            names_list = ['ERES_NAME', 'ERES_CODE']
+            lab_headers = [c for c in all_cols if c not in names_list + CURRENT_GAC_LIST]
+
+            def highlight_exceedances(df):
+                # Shadow dataframe for numeric comparison
+                calc_df = df.copy()
+                for col in lab_headers + CURRENT_GAC_LIST:
+                    calc_df[col] = calc_df[col].astype(str).replace(r'.*<.*', '0', regex=True)
+                    calc_df[col] = calc_df[col].replace(r'[^0-9.\-]', '', regex=True)
+                    calc_df[col] = pd.to_numeric(calc_df[col], errors='coerce')
+
+                standards = calc_df[CURRENT_GAC_LIST].min(axis=1).fillna(float('inf'))
+
+                style_df = pd.DataFrame('', index=df.index, columns=df.columns)
+                for col in lab_headers:
+                    mask = calc_df[col] > standards
+                    style_df.loc[mask, col] = 'background-color: #FFCCCB'
+
+                return style_df
+
+            # Apply styles and export
+            styled_df = FILTERED_DF.style.apply(highlight_exceedances, axis=None)
+            styled_df.to_excel(save_path, index=False, engine='openpyxl')
+
+            update_log(f"Excel file saved: {os.path.basename(save_path)}")
+            messagebox.showinfo("Success", "Excel file exported successfully with formatting.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save Excel file: {str(e)}")
 
 
 def display_data(table_name, data, analysis=False, gac=None):
@@ -315,6 +429,8 @@ def display_data(table_name, data, analysis=False, gac=None):
         messagebox.showwarning("No data", "No data to display - please load a valid file")
     else:
         # Remove NaN values and format headers - solve pandastable float issues
+        for col in data.select_dtypes(['category']).columns:
+            data[col] = data[col].astype(str)
         data = data.fillna('')
         data.columns = [str(col) for col in data.columns]
 
@@ -375,6 +491,23 @@ def update_log(message):
         log_widget.config(state="disabled")
 
 
+def handle_gac_box(event):
+    choice = SELECTED_GAC.get()
+    print(f"Selected GAC: {choice}")
+
+    if choice == "Industrial Water" or choice == "Residential Water":
+        som_box.config(state="disabled")
+        SELECTED_SOM.set("")
+    else:
+        SELECTED_SOM.set(som_options[0])
+        som_box.config(state="enabled")
+
+    root.update_idletasks()
+    new_height = root.winfo_reqheight()
+    current_width = root.winfo_width()
+    root.geometry(f"{current_width}x{new_height}")
+
+
 def pass_func():
     """Bypass function for testing. Boop!"""
     print('boop')
@@ -382,14 +515,21 @@ def pass_func():
 
 # ---------- VARIABLES ----------
 LAB_FILE = ""
-GAC = {"Industrial Soil": "ind_soil_gac.csv",
-       "Industrial Water": "ind_water_gac.csv",
-       "Residential Soil": "res_soil_gac.csv",
-       "Residential Water": "res_water_gac.csv"}
+GAC = {"Industrial Soil": "ind_soil_gac",
+       "Industrial Water": "ind_water_gac",
+       "Residential Soil": "res_soil_gac",
+       "Residential Soil (Plant Uptake)": "res_soil_gac_plant",
+       "Residential Water": "res_water_gac"}
+SOM = {"1%": "_1",
+       "2.5%": "_2-5",
+       "6%": "_6",
+       "": ""}
 REFORMATTED_DF = pd.DataFrame([])
 RAW_DATA = {}       # To store the full dictionary of AGS groups (LOCA, SAMP, ERES, etc.)
 AGS_HEADINGS = {}   # To store the headers/units/types for the AGS file
 FILTERED_AGS = {}   # To store the results that exceed criteria for export
+FILTERED_DF = pd.DataFrame([]) # To store results as a printable df
+CURRENT_GAC_LIST = [] # To store GAC headers for Excel export
 
 # Style
 TITLE_FONT = ("Calibri", 20, "bold")
@@ -403,21 +543,18 @@ WHITE= "#FFFFFF"
 root = tk.Tk()
 root.configure(background=ORANGE)
 root.title("Lab Analysis")
-root.geometry("360x518")
-root.resizable(False, False)
+root.resizable(False, False) # Window sized after widgets added
 
 # Add header/ footer
-header = Canvas(root, width=360, height=26, bd=0, highlightthickness=0)
+header = Canvas(root, width=360, height=30, bd=0, highlightthickness=0)
 head_file_path = resource_path(os.path.join('data', 'header_pic.png'))
 header_img = PhotoImage(file=head_file_path)
 header.create_image(0, 0, image=header_img)
-header.grid(row=0, column=0, columnspan=2)
 
-footer = Canvas(root, width=360, height=26, bd=0, highlightthickness=0)
+footer = Canvas(root, width=360, height=30, bd=0, highlightthickness=0)
 foot_file_path = resource_path(os.path.join('data', 'footer_pic.png'))
 footer_img = PhotoImage(file=foot_file_path)
 footer.create_image(0, 0, image=footer_img)
-footer.grid(row=7, column=0, columnspan=2)
 
 # Add Labels
 title = tk.Label(
@@ -426,15 +563,14 @@ title = tk.Label(
     font=TITLE_FONT,
     bg=ORANGE
 )
-title.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
 
 file_label = tk.Label(
     root,
     text="No file selected",
     font=BUTTON_FONT,
-    bg=ORANGE
+    bg=ORANGE,
+    wraplength=180
 )
-file_label.grid(sticky="W", column=1, row=2, padx=5, pady=10, columnspan=2)
 
 gac_label = tk.Label(
     root,
@@ -442,14 +578,19 @@ gac_label = tk.Label(
     font=BUTTON_FONT,
     bg=ORANGE
 )
-gac_label.grid(sticky="W", column=0, row=3, padx=5, pady=10)
+
+som_label = tk.Label(
+    root,
+    text="Select SOM%: ",
+    font=BUTTON_FONT,
+    bg=ORANGE
+)
 
 version_label = tk.Label(
     root,
     text=f"{__version__}",
     font=("Calibri", 8),
 )
-version_label.grid(sticky="W", column=0, row=7, padx=5, pady=5)
 
 # Add buttons
 upload_button = tk.Button(
@@ -458,15 +599,13 @@ upload_button = tk.Button(
     font=BUTTON_FONT,
     command=load_file
 )
-upload_button.grid(sticky="W", column=0, row=2, padx=5, pady=10)
 
 disp_button = tk.Button(
     root,
     text="Display Data",
     font=BUTTON_FONT,
-    command=lambda:display_data('Lab Data', REFORMATTED_DF)
+    command=lambda:display_data(file_label['text'], REFORMATTED_DF)
 )
-disp_button.grid(sticky="E",column=1, row=4, padx=5, pady=15)
 
 analyse_button = tk.Button(
     root,
@@ -474,7 +613,6 @@ analyse_button = tk.Button(
     font=BUTTON_FONT,
     command=lambda:analyse(REFORMATTED_DF)
 )
-analyse_button.grid(sticky="W", column=0, row=4, padx=5, pady=15)
 
 help_button = tk.Button(
     root,
@@ -482,35 +620,50 @@ help_button = tk.Button(
     font=("Calibri", 8),
     command=lambda: os.startfile('README.md')
 )
-help_button.grid(sticky="E", column=1, row=7, padx=5, pady=5)
 
-export_button = tk.Button(
+export_ags_button = tk.Button(
     root,
-    text="Export .AGS",
+    text="Export .ags",
     font=BUTTON_FONT,
     command=export_ags_file,
     state="disabled" # Disabled until analysis is run
 )
-export_button.grid(sticky="W", column=0, row=5, padx=5)
 
-# Add dropdown
-dropdown_options = ["Industrial Soil", "Industrial Water", "Residential Soil", "Residential Water"]
-selected_gac = tk.StringVar(root)
-selected_gac.set(dropdown_options[0])
-dropdown_box = ttk.Combobox(root, textvariable=selected_gac, values=dropdown_options,
-                            state="readonly", font=TEXT_FONT)
-dropdown_box.grid(sticky="W", column=1, row=3, padx=5)
-# For use in analysis button --- selected_gac.get() --- gets value from dropdown
+export_csv_button = tk.Button(
+    root,
+    text="Export .csv",
+    font=BUTTON_FONT,
+    command=export_csv_file,
+    state="disabled" # Disabled until analysis is run
+)
+
+export_xlsx_button = tk.Button(
+    root,
+    text="Export .xlsx",
+    font=BUTTON_FONT,
+    command=export_xlsx_file,
+    state="disabled" # Disabled until analysis is run
+)
+
+# Add dropdowns
+gac_options = ["Industrial Water", "Residential Water", "Industrial Soil",
+               "Residential Soil", "Residential Soil (Plant Uptake)", "Custom Criteria"]
+SELECTED_GAC = tk.StringVar(root)
+SELECTED_GAC.set(gac_options[0])
+gac_box = ttk.Combobox(root, textvariable=SELECTED_GAC, values=gac_options,
+                       state="readonly", font=TEXT_FONT)
+gac_box.bind("<<ComboboxSelected>>", handle_gac_box)
+
+som_options = ["1%", "2.5%", "6%"]
+SELECTED_SOM = tk.StringVar(root)
+SELECTED_SOM.set("")
+som_box = ttk.Combobox(root, textvariable=SELECTED_SOM, values=som_options,
+                       state="readonly", font=TEXT_FONT)
+som_box.config(state="disabled")
 
 # Add log box
 log_container = tk.Frame(root, padx=5, pady=10 ,bg=ORANGE)
-log_container.grid(row=6, column=0, columnspan=2, sticky=tk.N+tk.E+tk.W+tk.S)
-log_container.grid_columnconfigure(0, weight=1)
-log_container.grid_rowconfigure(1, weight=1)
-
 scrollbar = tk.Scrollbar(log_container)
-scrollbar.grid(row=1, column=1, sticky=tk.N+tk.S)
-
 log_widget = tk.Text(log_container,
                      wrap="word",  # Wrap lines at word boundaries
                      yscrollcommand=scrollbar.set,  # Link scrollbar to Text widget
@@ -519,9 +672,49 @@ log_widget = tk.Text(log_container,
                      bg='white',
                      bd=1,  # Border width
                      relief="sunken")  # Sunken relief for a box look
-log_widget.grid(row=1, column=0, sticky=tk.N + tk.E + tk.W + tk.S)
 scrollbar.config(command=log_widget.yview)
 log_widget.config(state="disabled")
+
+# Add checkbox
+ALL_DATA = tk.BooleanVar()
+display_check = tk.Checkbutton(
+    root,
+    text="Display all data?",
+    variable=ALL_DATA,
+    onvalue=True,
+    offvalue=False,
+    bg=ORANGE
+)
+
+# Widget placement
+header.grid(row=0, column=0, columnspan=3)
+footer.grid(row=9, column=0, columnspan=3)
+title.grid(column=0, row=1, columnspan=3, padx=10, pady=10)
+file_label.grid(sticky="W", column=1, row=2, padx=5, pady=10, columnspan=2)
+gac_label.grid(sticky="W", column=0, row=3, padx=5, pady=10)
+som_label.grid(sticky="W", column=0, row=4, padx=5)
+version_label.grid(sticky="W", column=0, row=9, padx=5, pady=5)
+upload_button.grid(sticky="W", column=0, row=2, padx=5, pady=10)
+disp_button.grid(sticky="E",column=2, row=5, padx=5, pady=15)
+analyse_button.grid(sticky="W", column=0, row=5, padx=5, pady=15)
+help_button.grid(sticky="E", column=2, row=9, padx=5, pady=5)
+export_ags_button.grid(sticky="W", column=0, row=7, padx=5, pady=10)
+export_csv_button.grid(column=1, row=7, padx=5, pady=10)
+export_xlsx_button.grid(sticky="E", column=2, row=7, padx=5, pady=10)
+gac_box.grid(sticky="", column=1, row=3, padx=5, columnspan=2)
+som_box.grid(sticky="", column=1, row=4, padx=5, columnspan=2)
+log_container.grid(row=8, column=0, columnspan=3, sticky=tk.N+tk.E+tk.W+tk.S)
+log_container.grid_columnconfigure(0, weight=1)
+log_container.grid_rowconfigure(1, weight=1)
+scrollbar.grid(row=1, column=1, sticky=tk.N+tk.S)
+log_widget.grid(row=1, column=0, sticky=tk.N + tk.E + tk.W + tk.S)
+display_check.grid(row=6, column=0, sticky=tk.N+tk.W, padx=5)
+
+# Size window
+root.update_idletasks()
+new_height = root.winfo_reqheight()
+current_width = root.winfo_width()
+root.geometry(f"{current_width}x{new_height}")
 
 # ---------- RUN ----------
 if __name__ == "__main__":
