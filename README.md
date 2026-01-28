@@ -1,5 +1,5 @@
 # Ags Screening Software
-### v1.2.0-beta
+### v1.2.1-beta
 
 **! This is a prototype software, still in development. Please check all results for inaccuracies before using them for
 reporting. This may arise from an error in the programmes logic, or errors in the included GAC data. Please report 
@@ -12,7 +12,7 @@ Ags Screening Software is a simple app that allows the upload of lab data in the
 the relevant GAC and user uploaded criteria. The screened data is displayed as a standalone table, highlighting 
 all values above the GAC, and can be exported as an .ags, .csv and .xlsx file (including formatting) for inclusion
 in reporting or further analysis through other apps.
-### New in this version (1.2.0-beta)
+### New in this version (1.2.1-beta)
 - Sample depths added to sample names
 - .csv export button added
 - .xlsx export button added (preserves exceedance shading)
