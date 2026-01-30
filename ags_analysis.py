@@ -7,10 +7,18 @@ Results are displayed as integrated tables that can be exported as .csv files
 ERES_CODE in AGS link directly to the contaminant names based on their CAS number.
 CAS numbers can be queried at https://webbook.nist.gov/chemistry/name-ser/
 
+QUERIES:
+Should <x values just represent the x value, or 0? Can use ERES_RVAL instead of ERES_RTXT to get number w/o < >
+
+NOTES:
+ERES_RVAL should be included in data scrape to reduce required < > removal logic
+ERES_IQLF/ ERES_LQLF used to display whether < or > are present
+
 TO DO:
 Check all GAC data
 
 SOLVED:
+Fixed issue where sample depths were not extracted correctly
 Add sample depths - previous code only picked first sample ID, removing any deeper samples
 File name wrapped and window auto-sized
 CSV export button added for filtered data
@@ -90,7 +98,7 @@ def load_file():
     if 'ERES' in tables:
         lab_test_summary = tables['ERES']
         # Create a new DataFrame with selected columns and exclude the first two rows
-        lab_results_df = lab_test_summary[['LOCA_ID', 'SAMP_ID', 'SPEC_DPTH', 'ERES_CODE', 'ERES_MATX', 'ERES_NAME',
+        lab_results_df = lab_test_summary[['LOCA_ID', 'SAMP_ID', 'SAMP_TOP', 'ERES_CODE', 'ERES_MATX', 'ERES_NAME',
                                            'ERES_RTXT']].iloc[2:]
         update_log('ERES table loaded')
     else:
@@ -103,7 +111,7 @@ def load_file():
     # --- Reformat lab data ---
     REFORMATTED_DF = lab_results_df.pivot_table(
         index=['ERES_NAME', 'ERES_CODE'],
-        columns=['LOCA_ID', 'SPEC_DPTH'],
+        columns=['LOCA_ID', 'SAMP_TOP'],
         values='ERES_RTXT',
         aggfunc='first'
     )
